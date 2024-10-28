@@ -1,8 +1,8 @@
 package in
 
-type Persons struct {
+type PersonData struct {
 	ResponseWrapper
-	Results []Person `json:"results"`
+	Persons []Person `json:"results"`
 }
 
 type Person struct {

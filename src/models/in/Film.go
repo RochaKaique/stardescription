@@ -1,6 +1,6 @@
 package in
 
-type Film struct{
-	Name string
-	RelesaDate string
+type Film struct {
+	Name       string `json:"title"`
+	RelesaDate string `json:"release_date"`
 }

@@ -22,10 +22,13 @@ func CreateToken(userID string) (string, error) {
 }
 
 func ValidateToken(ctx *fiber.Ctx) error {
-	tokenString := extractToken(ctx)
-	token, error := jwt.Parse(tokenString, getVerificationKey)
-	if error != nil {
-		return error
+	tokenString, err := extractToken(ctx)
+	if err != nil {
+		return err
+	}
+	token, err := jwt.Parse(tokenString, getVerificationKey)
+	if err != nil {
+		return err
 	}
 
 	if _, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
@@ -35,14 +38,18 @@ func ValidateToken(ctx *fiber.Ctx) error {
 	return errors.New("token inválido")
 }
 
-func extractToken(ctx *fiber.Ctx) (string) {
-	token := ctx.GetReqHeaders()["Authorization"][0]
+func extractToken(ctx *fiber.Ctx) (string, error) {
+	token := ctx.GetReqHeaders()["Authorization"]
 
-	if len(strings.Split(token, " ")) == 2 {
-		return strings.Split(token, " ")[1]
+	if token == nil || len(token) == 0 {
+		return "", fiber.NewError(fiber.StatusUnauthorized)
 	}
 
-	return ""
+	if len(strings.Split(token[0], " ")) == 2 {
+		return strings.Split(token[0], " ")[1], nil
+	}
+
+	return "", fiber.NewError(fiber.StatusUnauthorized)
 }
 
 func getVerificationKey(token *jwt.Token) (interface{}, error) {

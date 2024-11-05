@@ -3,5 +3,8 @@
         "user":"star",
         "password":"Star123@",
         "schema":"stardescription"
+    },
+    "secret": {
+        "key": "rS6z3MgYRKh4PCA6hry0+nbLn7o1FSAFmR506uowrZwU1GYmQ1tWAcnCEr/SQezngQpo0cSrt99rq8LeJWnXsg=="
     }
 }

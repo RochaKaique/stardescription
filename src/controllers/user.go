@@ -19,3 +19,17 @@ func CreateUser(ctx *fiber.Ctx) error {
 
 	return nil
 }
+
+func Login(ctx *fiber.Ctx) error {
+	u := new(in.User)
+	if err := ctx.BodyParser(u); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	token, err := services.Login(u)
+	if err != nil {
+		return err
+	}
+
+	return ctx.JSON(token)
+}

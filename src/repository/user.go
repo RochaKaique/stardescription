@@ -32,3 +32,23 @@ func (repo Repo) Create(user in.User) (string, error) {
 
 	return "Usuario Inserido", nil
 }
+
+func (repo Repo) FindByEmailForLogin(email string) (in.User, error) {
+	line, error := repo.db.Query("SELECT id, password FROM users WHERE email = ?", email)
+	if error != nil {
+		return in.User{}, error
+	}
+	defer line.Close()
+
+	var user in.User
+	if line.Next() {
+		if error = line.Scan(
+			&user.ID,
+			&user.Password,
+		); error != nil {
+			return in.User{}, error
+		}
+	}
+
+	return user, nil
+}

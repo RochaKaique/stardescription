@@ -16,9 +16,9 @@ func GetPersonByName(name string) (out.Person, error) {
 	// resp, error := http.Get("https://swapi.dev/api/people?search="+name)
 
 	cc := client.New()
-	resp, error := cc.Get("https://swapi.dev/api/people?search=" + name)
-	if error != nil {
-		return out.Person{}, error
+	resp, err := cc.Get("https://swapi.dev/api/people?search=" + name)
+	if err != nil {
+		return out.Person{}, err
 	}
 	defer resp.Close()
 
@@ -29,15 +29,19 @@ func GetPersonByName(name string) (out.Person, error) {
 	}
 
 	person := personData.Persons[0]
-	planet, err := getHomeworld(person.Homeworld)
-	if err != nil {
-		return out.Person{}, err
-	}
+
+	//Chamadas de planeta e filmes
+	// planet, err := getHomeworld(person.Homeworld)
+	// if err != nil {
+	// 	return out.Person{}, err
+	// }
+
+	chPlanet := make(chan in.Planet)
+	chError := make(chan error)
+
+	go getHomeworld(person.Homeworld, chPlanet, chError)
 
 	var personResponse out.Person
-	
-	personResponse.Name = person.Name
-	personResponse.Homeworld = planet.Name
 
 	for _, filmUri := range person.Films {
 		film, err := getFilm(filmUri)
@@ -46,19 +50,30 @@ func GetPersonByName(name string) (out.Person, error) {
 		}
 		personResponse.Films = append(personResponse.Films, film)
 	}
-	
+
+	planet := <-chPlanet
+	err = <-chError
+	if err != nil {
+		return out.Person{}, err
+	}
+
+	personResponse.Name = person.Name
+	personResponse.Homeworld = planet.Name
+
 	return personResponse, nil
 }
 
-func getHomeworld(uri string) (in.Planet, error) {
+func getHomeworld(uri string, chPlanet chan in.Planet, chError chan error) {
 	if uri == "" {
-		return in.Planet{}, errors.New("A uri para busca da terra natal está vazia")
+		chPlanet <- in.Planet{}
+		chError <- errors.New("A uri para busca da terra natal está vazia")
 	}
 
 	cc := client.New()
 	resp, err := cc.Get(uri)
 	if err != nil {
-		return in.Planet{}, err
+		chPlanet <- in.Planet{}
+		chError <- err
 	}
 	defer resp.Close()
 
@@ -66,10 +81,12 @@ func getHomeworld(uri string) (in.Planet, error) {
 
 	var planet in.Planet
 	if err := resp.JSON(&planet); err != nil {
-		return in.Planet{}, errors.New("Erro ao ler json de resposta")
+		chPlanet <- in.Planet{}
+		chError <- errors.New("Erro ao ler json de resposta")
 	}
 
-	return planet, nil
+	chPlanet <- planet
+	chError <- nil
 }
 
 func getFilm(uri string) (in.Film, error) {

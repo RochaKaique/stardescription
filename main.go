@@ -13,10 +13,12 @@ func init() {
 	viper.AddConfigPath("./configs/")
 	viper.AddConfigPath("/etc/")
 
+
 	err := viper.ReadInConfig()
 	if err != nil {
 		panic(err)
 	}
+
 }
 
 func main() {

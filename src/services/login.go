@@ -7,11 +7,13 @@ import (
 	"bff/src/models/out"
 	"bff/src/repository"
 	"bff/src/security"
+	"log/slog"
 
 	"github.com/gofiber/fiber/v3"
 )
 
 func Login(user *in.User) (out.Login, error) {
+	slog.Info("Logando no app")
 	db, err := database.Connect()
 	if err != nil {
 		return out.Login{}, fiber.NewError(fiber.StatusInternalServerError, "Erro ao conectar com obanco: " + err.Error()) 

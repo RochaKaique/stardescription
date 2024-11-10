@@ -38,6 +38,32 @@ func ValidateToken(ctx *fiber.Ctx) error {
 	return errors.New("token inválido")
 }
 
+func ExtractUserID(ctx *fiber.Ctx) (string, error){
+	tokenString, err := extractToken(ctx)
+	if err != nil {
+		return "", err
+	}
+	token, err := jwt.Parse(tokenString, getVerificationKey)
+	if err != nil {
+		return "", err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		userID := claims["userId"]
+		return fmt.Sprint(userID), nil
+	}
+
+	return "", errors.New("token Inválido")
+}
+
+func ExtractUserAgent(ctx *fiber.Ctx) string {
+	userAgent := ctx.GetReqHeaders()["User-Agent"]
+	if userAgent == nil || len(userAgent) < 0 {
+		return ""
+	}
+	return userAgent[0]
+}
+
 func extractToken(ctx *fiber.Ctx) (string, error) {
 	token := ctx.GetReqHeaders()["Authorization"]
 

@@ -4,7 +4,6 @@ import (
 	"bff/src/models/in"
 	"bff/src/models/out"
 	"errors"
-	"fmt"
 
 	"github.com/gofiber/fiber/v3/client"
 )
@@ -77,8 +76,6 @@ func getHomeworld(uri string, chPlanet chan in.Planet, chError chan error) {
 	}
 	defer resp.Close()
 
-	fmt.Println(string(resp.Body()))
-
 	var planet in.Planet
 	if err := resp.JSON(&planet); err != nil {
 		chPlanet <- in.Planet{}
@@ -101,7 +98,6 @@ func getFilm(uri string) (in.Film, error) {
 	}
 	defer resp.Close()
 
-	fmt.Println(string(resp.Body()))
 
 	var film in.Film
 	if err := resp.JSON(&film); err != nil {

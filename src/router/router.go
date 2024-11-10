@@ -8,7 +8,7 @@ import (
 )
 
 func SetupRoutes(app *fiber.App) {
-	app.Get("/person", middleware.Authenticate, controllers.GetDescription)
+	app.Get("/person", middleware.Authenticate, middleware.HandleLog, controllers.GetDescription)
 	app.Post("/user", controllers.CreateUser)
-	app.Post("/login", controllers.Login)
+	app.Post("/login", middleware.HandleLog, controllers.Login)
 }

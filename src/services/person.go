@@ -4,6 +4,8 @@ import (
 	"bff/src/models/in"
 	"bff/src/models/out"
 	"errors"
+	"fmt"
+	"sync"
 
 	"github.com/gofiber/fiber/v3/client"
 )
@@ -39,16 +41,12 @@ func GetPersonByName(name string) (out.Person, error) {
 	chError := make(chan error)
 
 	go getHomeworld(person.Homeworld, chPlanet, chError)
+	films, err := getFilmsAsync(person.Films)
+	if err != nil {
+		return out.Person{}, err
+	}
 
 	var personResponse out.Person
-
-	for _, filmUri := range person.Films {
-		film, err := getFilm(filmUri)
-		if err != nil {
-			return out.Person{}, err
-		}
-		personResponse.Films = append(personResponse.Films, film)
-	}
 
 	planet := <-chPlanet
 	err = <-chError
@@ -56,6 +54,7 @@ func GetPersonByName(name string) (out.Person, error) {
 		return out.Person{}, err
 	}
 
+	personResponse.Films = films
 	personResponse.Name = person.Name
 	personResponse.Homeworld = planet.Name
 
@@ -98,11 +97,64 @@ func getFilm(uri string) (in.Film, error) {
 	}
 	defer resp.Close()
 
-
 	var film in.Film
 	if err := resp.JSON(&film); err != nil {
 		return in.Film{}, errors.New("Erro ao ler json de resposta")
 	}
 
 	return film, nil
+}
+
+func getFilmsAsync(uris []string) ([]in.Film, error) {
+	filmCh := make(chan in.Film)
+	errorCh := make(chan error)
+	done := make(chan struct{})
+
+	uriCh := streamUris(done, uris)
+
+	var wg sync.WaitGroup
+	wg.Add(len(uris))
+
+	for i := 0; i < len(uris); i++ {
+		go func() {
+			for uri := range uriCh {
+				film, error := getFilm(uri)
+				if error != nil {
+					errorCh <- error
+				}
+				filmCh <- film
+				wg.Done()
+			}
+		}()
+	}
+
+	go func() {
+        wg.Wait()
+        close(filmCh)
+		close(errorCh)
+    }()
+
+	var films []in.Film
+
+	for film := range filmCh {
+		fmt.Println(film)
+		films = append(films, film)
+	}
+
+	return films, nil
+}
+
+func streamUris(done <-chan struct{}, uris []string) <-chan string {
+	uriCh := make(chan string)
+	go func() {
+		defer close(uriCh)
+		for _, uri := range uris {
+			select {
+			case uriCh <- uri:
+			case <-done:
+				break
+			}
+		}
+	}()
+	return uriCh
 }

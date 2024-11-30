@@ -11,7 +11,11 @@ func GetDescription(ctx *fiber.Ctx) error {
 	queries := ctx.Queries()
 	name := queries["name"]
 
-	person, _ := services.GetPersonByName(name)
+	person, err := services.GetPersonByName(name)
+	if err != nil {
+		slog.Error("Problema ao realizar consulta")
+		return err
+	}
 
 	slog.Info("Consulta Realizada")
 

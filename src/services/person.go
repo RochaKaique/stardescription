@@ -4,7 +4,6 @@ import (
 	"bff/src/models/in"
 	"bff/src/models/out"
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/gofiber/fiber/v3/client"
@@ -31,17 +30,11 @@ func GetPersonByName(name string) (out.Person, error) {
 
 	person := personData.Persons[0]
 
-	//Chamadas de planeta e filmes
-	// planet, err := getHomeworld(person.Homeworld)
-	// if err != nil {
-	// 	return out.Person{}, err
-	// }
-
 	chPlanet := make(chan in.Planet)
 	chError := make(chan error)
 
 	go getHomeworld(person.Homeworld, chPlanet, chError)
-	films, err := getFilmsAsync(person.Films)
+	films, err := fetchFilms(person.Films)
 	if err != nil {
 		return out.Person{}, err
 	}
@@ -85,76 +78,55 @@ func getHomeworld(uri string, chPlanet chan in.Planet, chError chan error) {
 	chError <- nil
 }
 
-func getFilm(uri string) (in.Film, error) {
-	if uri == "" {
-		return in.Film{}, errors.New("A uri para busca da terra natal está vazia")
+func getFilm(url string, wg *sync.WaitGroup, chFilm chan<- in.Film, chErr chan<- error) {
+	defer wg.Done()
+	if url == "" {
+		chErr <- errors.New("A uri para busca do filme está vazia")
+		return
 	}
 
 	cc := client.New()
-	resp, err := cc.Get(uri)
-	if err != nil {
-		return in.Film{}, err
+	resp, err := cc.Get(url + "a")
+	if err != nil || resp.StatusCode() != 200 {
+		chErr <- errors.New("Erro ao obter filmes")
 	}
 	defer resp.Close()
 
 	var film in.Film
 	if err := resp.JSON(&film); err != nil {
-		return in.Film{}, errors.New("Erro ao ler json de resposta")
+		chErr <- errors.New("Erro ao ler json de resposta")
 	}
 
-	return film, nil
+	chFilm <- film
 }
 
-func getFilmsAsync(uris []string) ([]in.Film, error) {
-	filmCh := make(chan in.Film)
-	errorCh := make(chan error)
-	done := make(chan struct{})
-
-	uriCh := streamUris(done, uris)
-
+func fetchFilms(urls []string) ([]in.Film, error) {
 	var wg sync.WaitGroup
-	wg.Add(len(uris))
+	chFilm := make(chan in.Film, len(urls))
+	chErr := make(chan error, 1)
 
-	for i := 0; i < len(uris); i++ {
-		go func() {
-			for uri := range uriCh {
-				film, error := getFilm(uri)
-				if error != nil {
-					errorCh <- error
-				}
-				filmCh <- film
-				wg.Done()
-			}
-		}()
+	for _, url := range urls {
+		wg.Add(1)
+		go getFilm(url, &wg, chFilm, chErr)
 	}
 
 	go func() {
-        wg.Wait()
-        close(filmCh)
-		close(errorCh)
-    }()
+		wg.Wait()
+		close(chErr)
+		close(chFilm)
+	}()
+
+	err := <-chErr
+
+	if err != nil {
+		return nil, err
+	}
 
 	var films []in.Film
 
-	for film := range filmCh {
-		fmt.Println(film)
+	for film := range chFilm {
 		films = append(films, film)
 	}
 
 	return films, nil
-}
-
-func streamUris(done <-chan struct{}, uris []string) <-chan string {
-	uriCh := make(chan string)
-	go func() {
-		defer close(uriCh)
-		for _, uri := range uris {
-			select {
-			case uriCh <- uri:
-			case <-done:
-				break
-			}
-		}
-	}()
-	return uriCh
 }

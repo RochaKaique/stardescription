@@ -4,7 +4,6 @@ import (
 	"bff/src/models/in"
 	"bff/src/models/out"
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/gofiber/fiber/v3/client"
@@ -30,12 +29,6 @@ func GetPersonByName(name string) (out.Person, error) {
 	}
 
 	person := personData.Persons[0]
-
-	//Chamadas de planeta e filmes
-	// planet, err := getHomeworld(person.Homeworld)
-	// if err != nil {
-	// 	return out.Person{}, err
-	// }
 
 	chPlanet := make(chan in.Planet)
 	chError := make(chan error)
@@ -88,13 +81,14 @@ func getHomeworld(uri string, chPlanet chan in.Planet, chError chan error) {
 func getFilm(url string, wg *sync.WaitGroup, chFilm chan<- in.Film, chErr chan<- error) {
 	defer wg.Done()
 	if url == "" {
-		chErr <- errors.New("A uri para busca da terra natal está vazia")
+		chErr <- errors.New("A uri para busca do filme está vazia")
+		return
 	}
 
 	cc := client.New()
-	resp, err := cc.Get(url)
-	if err != nil {
-		chErr <- err
+	resp, err := cc.Get(url + "a")
+	if err != nil || resp.StatusCode() != 200 {
+		chErr <- errors.New("Erro ao obter filmes")
 	}
 	defer resp.Close()
 
@@ -116,9 +110,11 @@ func fetchFilms(urls []string) ([]in.Film, error) {
 		go getFilm(url, &wg, chFilm, chErr)
 	}
 
-	wg.Wait()
-	close(chFilm)
-	close(chErr)
+	go func() {
+		wg.Wait()
+		close(chErr)
+		close(chFilm)
+	}()
 
 	err := <-chErr
 

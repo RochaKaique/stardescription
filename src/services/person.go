@@ -86,7 +86,7 @@ func getFilm(url string, wg *sync.WaitGroup, chFilm chan<- in.Film, chErr chan<-
 	}
 
 	cc := client.New()
-	resp, err := cc.Get(url + "a")
+	resp, err := cc.Get(url)
 	if err != nil || resp.StatusCode() != 200 {
 		chErr <- errors.New("Erro ao obter filmes")
 	}
